@@ -1,4 +1,4 @@
-var snake, scale, canvasWidth, canvasHeight;
+var playerOne, playerTwo, scale, canvasWidth, canvasHeight;
 var eatFood = new Audio('sounds/eatfood.wav');
 var gameBoo = new Audio('sounds/boo.mp3');
 var bkgColor = "#67b20c";
@@ -12,24 +12,36 @@ function setup() { // se corre una vez antes de llamar automaticamente a draw();
 	canvasHeight = 400;
 	createCanvas(canvasWidth, canvasHeight);
 	frameRate(12);
-	snake = new Snake();
+	playerOne = new Snake(40, 20, 255);
+	playerTwo = new Snake(40, 360, 15);
 	food = new Food();
 	food.generate();
+	food2 = new Food();
+	food2.generate();
 }
 
 function draw() { // recorre este loop hasta game over;
 	background(bkgColor); // pinta el canvas
-	snake.refresh(); // +1 movimiento en la direccion que corresponda
-	snake.mirror(); // se fija si el snake toca algun borde; si toca, espeja la coordenada
-	snake.checkEat(); // se fija si el snake tiene el mismo x y que food
-	snake.checkDeath(); // se fija si la cabeza del snake toca alguna parte del cuerpo de snake
-	snake.draw(); // dibuja el snake
+
+	playerOne.refresh(); // +1 movimiento en la direccion que corresponda
+	playerOne.mirror(); // se fija si el snake toca algun borde; si toca, espeja la coordenada
+	playerOne.checkEat(); // se fija si el snake tiene el mismo x y que food
+	playerOne.checkDeath(); // se fija si la cabeza del snake toca alguna parte del cuerpo de snake
+	playerOne.draw(); // dibuja el snake
+
+	playerTwo.refresh(); // +1 movimiento en la direccion que corresponda
+	playerTwo.mirror(); // se fija si el snake toca algun borde; si toca, espeja la coordenada
+	playerTwo.checkEat(); // se fija si el snake tiene el mismo x y que food
+	playerTwo.checkDeath(); // se fija si la cabeza del snake toca alguna parte del cuerpo de snake
+	playerTwo.draw(); // dibuja el snake
+
 	food.draw(); // dibuja la comida
+	food2.draw();
 }
 
-function Snake() { // Clase Snake
-	this.x = 20;
-	this.y = 20;
+function Snake(x, y, clr) { // Clase Snake
+	this.x = x;
+	this.y = y;
 	this.xspeed = 1;
 	this.yspeed = 0;
 	this.total = 0;
@@ -47,11 +59,11 @@ function Snake() { // Clase Snake
 	}
 
 	this.draw = function() { // dibuja el objeto
-		fill(snkColor);
+		fill(clr);
 		for (i = 0; i < this.tail.length; i++) {
 			rect(this.tail[i].x, this.tail[i].y, scale, scale);
 		}
-		fill(snkColor);
+		fill(clr);
 		rect(this.x, this.y, scale, scale);
 		fill(eyeColor);
 		rect(this.x + 5, this.y + 5, 3, 6);
@@ -69,6 +81,11 @@ function Snake() { // Clase Snake
 			eatFood.play();
 			this.total++;
 		}
+		if (dist(this.x + 10, this.y + 10, food2.x, food2.y) < 1) {
+			food2.eaten();
+			eatFood.play();
+			this.total++;
+		}
 	}
 
 	this.checkDeath = function() { // chequea si la cabeza de snake toca el cuerpo
@@ -76,9 +93,20 @@ function Snake() { // Clase Snake
 			var pos = this.tail[i];
 			var d = dist(this.x, this.y, pos.x, pos.y);
 			if (d == 0) {
-				gameOver(this.total);
+				gameOver(this);
 			}
-		}		
+		}
+		var player = checkWho(this);
+		for (i = 0; i < player.tail.length; i++) {
+			var pos = player.tail[i];
+			var d = dist(this.x, this.y, pos.x, pos.y);
+			if (d == 0) {
+				gameOver(this);
+			}
+		}
+		if (this.x === player.x && this.y === player.y) {
+			gameOver(this);
+		}
 	}
 
 	this.mirror = function() { // chequea si Snake se salio del canvas y lo devuelve en el lado opuesto
@@ -125,32 +153,71 @@ function foodInGrid(axis) { // randomizador de comida. Recube de parametro el an
 function keyPressed() { // chequea el input del teclado.
 	switch (keyCode) {
 		case UP_ARROW:
-			if (snake.yspeed !== 1) {
-				snake.vector(0, -1);
+			if (playerOne.yspeed !== 1) {
+				playerOne.vector(0, -1);
 			}
 			break;
 		case DOWN_ARROW:
-			if (snake.yspeed !== -1) {
-				snake.vector(0, 1);
+			if (playerOne.yspeed !== -1) {
+				playerOne.vector(0, 1);
 			}
 			break;
 		case LEFT_ARROW:
-			if (snake.xspeed !== 1) {
-				snake.vector(-1, 0);
+			if (playerOne.xspeed !== 1) {
+				playerOne.vector(-1, 0);
 			}
 			break;
 		case RIGHT_ARROW:
-			if (snake.xspeed !== -1) {
-				snake.vector(1, 0);
+			if (playerOne.xspeed !== -1) {
+				playerOne.vector(1, 0);
+			}
+			break;
+		case 87: // W
+			if (playerTwo.yspeed !== 1) {
+				playerTwo.vector(0, -1);
+			}
+			break;
+		case 83: // S
+			if (playerTwo.yspeed !== -1) {
+				playerTwo.vector(0, 1);
+			}
+			break;
+		case 65: // A
+			if (playerTwo.xspeed !== 1) {
+				playerTwo.vector(-1, 0);
+			}
+			break;
+		case 68: // D
+			if (playerTwo.xspeed !== -1) {
+				playerTwo.vector(1, 0);
 			}
 			break;	
 	}
 }
 
-function gameOver(foods) {
+function gameOver(loser) {
 	remove();
-	var score = 100 * foods;
-	document.getElementById('gameOver').style.display = 'block';
-	document.getElementById('gameOver').innerHTML += '<br><br> Score: ' + score;
+	var scoreOne = 100 * playerOne.total;
+	var scoreTwo = 100 * playerTwo.total;
+	document.getElementById('ui').style.display = 'block';
+
+	if (loser === playerTwo) {
+		document.getElementById('gameOver').innerHTML += '<br><br> Player 1 Wins';	
+	}
+	else {
+		document.getElementById('gameOver').innerHTML += '<br><br> Player 2 Wins';	
+	}
+
+	document.getElementById('score').innerHTML = 'Player 1 Score: ' + scoreOne + '<br>' + 'Player 2 Score: ' + scoreTwo;
+	
 	gameBoo.play();
+}
+
+function checkWho(player) {
+	if (player === playerOne) {
+		return playerTwo;
+	}
+	else {
+		return playerOne;
+	}
 }
